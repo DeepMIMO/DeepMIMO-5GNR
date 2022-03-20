@@ -22,15 +22,6 @@ dataset_params = read_params('parameters.m');
 % DeepMIMO_dataset{i}.basestation{j}.loc
 % DeepMIMO_dataset{i}.basestation{j}.LoS_status
 %
-% % Recall that the size of the channel vector was given by 
-% % (# of User antennas) x (# of BS antennas) x (# of OFDM subcarriers)
-% % Each of the first two channel matrix dimensions follows a certain 
-% % reshaping sequence that can be obtained by the following
-% % 'antennamap' vector: Each entry is 3 integers in the form of 
-% % 'xyz' where each representing the antenna number in x, y, z directions
-% antennamap = antenna_channel_map(params.num_ant_x, ...
-%                                     params.num_ant_y, params.num_ant_z, 1);
-%
 % -------------------------- Dynamic Scenario ----------------------------%
 %
 % DeepMIMO_dataset{f}{i}.user{j}.channel % Scene f - BS i - User j

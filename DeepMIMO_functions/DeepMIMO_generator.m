@@ -1,9 +1,10 @@
 % --------- DeepMIMO: A Generic Dataset for mmWave and massive MIMO ------%
-% Author: Ahmed Alkhateeb
-% Date: Sept. 5, 2018
-% Goal: Encouraging research on ML/DL for mmWave MIMO applications and
+% Authors: Umut Demirhan, Abdelrahman Taha, Ahmed Alkhateeb
+% Date: March 17, 2022
+% Goal: Encouraging research on ML/DL for MIMO applications and
 % providing a benchmarking tool for the developed algorithms
 % ---------------------------------------------------------------------- %
+
 function [DeepMIMO_dataset, params]=DeepMIMO_generator(params)
 
     % -------------------------- DeepMIMO Dataset Generation -----------------%

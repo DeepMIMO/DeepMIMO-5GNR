@@ -1,19 +1,65 @@
+% --------- DeepMIMO: A Generic Dataset for mmWave and massive MIMO ------%
+% Authors: Umut Demirhan, Abdelrahman Taha, Ahmed Alkhateeb
+% Date: March 17, 2022
+% Goal: Encouraging research on ML/DL for MIMO applications and
+% providing a benchmarking tool for the developed algorithms
+% ---------------------------------------------------------------------- %
+
 function [params, params_inner] = validate_parameters(params)
+
+    [params] = compare_with_default_params(params);
 
     [params, params_inner] = additional_params(params);
 
     params_inner = validate_CDL5G_params(params, params_inner);
 end
 
+% Check the validity of the given parameters
+% Add default parameters if they don't exist in the current file
+% Does not compare the details of .CDL_5G structure
+function [params] = compare_with_default_params(params)
+    default_params = read_params('default_parameters.m');
+    params = compare_structure(params, default_params);
+    params.('CDL_5G') = compare_structure(params.('CDL_5G'), default_params.('CDL_5G'));
+    
+    function cur_struct = compare_structure(cur_struct, default_struct)
+        ignored_params = {'dataset_folder', 'bsCustomAntenna', 'ueCustomAntenna'};
+        default_fields = fieldnames(default_struct);
+        fields = fieldnames(cur_struct);
+        default_fields_exist = zeros(1, length(default_fields));
+        for i = 1:length(fields)
+            comp = strcmp(fields{i}, default_fields);
+            if sum(comp) == 1
+                default_fields_exist(comp) = 1;
+            else
+                if ~any(strcmp(fields{i}, ignored_params))
+                    fprintf('\nThe parameter "%s" defined in the given parameters is not used by DeepMIMO', fields{i}) 
+                end
+            end
+        end
+        default_fields_exist = ~default_fields_exist;
+        default_nonexistent_fields = find(default_fields_exist);
+        for i = 1:length(default_nonexistent_fields)
+            field = default_fields{default_nonexistent_fields(i)};
+            value = getfield(default_struct, field);
+            cur_struct = setfield(cur_struct, field, value);
+            fprintf('\nAdding default parameter: %s - %s', field, num2str(value)) 
+        end
+    end
+end
+
+
 function [params, params_inner] = additional_params(params)
 
     % Add dataset path
     if ~isfield(params, 'dataset_folder')
-        params_inner.dataset_folder = fullfile('./Raytracing_scenarios/');
+        current_folder = mfilename('fullpath');
+        deepmimo_folder = fileparts(fileparts(current_folder));
+        params_inner.dataset_folder = fullfile(deepmimo_folder, '/Raytracing_scenarios/');
 
         % Create folders if not exists
-        folder_one = './Raytracing_scenarios/';
-        folder_two = './DeepMIMO_dataset/';
+        folder_one = fullfile(deepmimo_folder, '/Raytracing_scenarios/');
+        folder_two = fullfile(deepmimo_folder, '/DeepMIMO_dataset/');
         if ~exist(folder_one, 'dir')
             mkdir(folder_one);
         end
