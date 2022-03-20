@@ -1,6 +1,6 @@
 # DeepMIMO-5GNR: A Generic Deep Learning Dataset for Millimeter Wave and Massive MIMO Applications
 This is a MATLAB code package of the DeepMIMO dataset generated using [Remcom Wireless InSite](http://www.remcom.com/wireless-insite) software. The [DeepMIMO dataset](https://deepmimo.net/) is a publicly available parameterized dataset published for deep learning applications in mmWave and massive MIMO systems.
-This code uses MATLAB 5G Toolbox to generate the channels. The ray-tracing results are used with [the custom CDL channel of MATLAB 5G Toolbox](https://www.mathworks.com/help/5g/ref/nrcdlchannel-system-object.html).
+This code uses MATLAB 5G Toolbox. The ray-tracing results are utilized with [the custom CDL channel of MATLAB 5G Toolbox](https://www.mathworks.com/help/5g/ref/nrcdlchannel-system-object.html) to generate the channels.
 
 
 This MATLAB code package is related to the following article: 
