@@ -8,12 +8,6 @@
 function channel = construct_DeepMIMO_CDL_channel(txSize, txOrientation, rxSize, rxOrientation, params_user, params)
 
     fc = params.carrier_freq;                 % carrier frequency (Hz)
-    bsAntSize = txSize;                  % number of rows and columns in rectangular array (base station)
-    bsArrayOrientation = txOrientation;  % azimuth (0 deg is East, 90 deg is North) and elevation (positive points upwards) in deg
-
-    ueAntSize =  rxSize;                    % number of rows and columns in rectangular array (UE).
-    ueArrayOrientation = rxOrientation;      % azimuth (0 deg is East, 90 deg is North) and elevation (positive points upwards)  in deg
-
     polarization = params.CDL_5G.polarization+1;
     
     channel = nrCDLChannel;
@@ -34,17 +28,20 @@ function channel = construct_DeepMIMO_CDL_channel(txSize, txOrientation, rxSize,
     channel.Seed = 5; % Fixed seed
     channel.XPR = params.CDL_5G.XPR;
     
-    % UE array
-    channel.ReceiveArrayOrientation = [ueArrayOrientation(1); (-1)*ueArrayOrientation(2); 0];  % the (-1) converts elevation to downtilt
-    % BS array
-    channel.TransmitArrayOrientation = [bsArrayOrientation(1); (-1)*bsArrayOrientation(2); 0];   % the (-1) converts elevation to downtilt
-
-    if params.CDL_5G.customAntenna
-        channel.TransmitAntennaArray = ueAntSize;
-        channel.ReceiveAntennaArray = bsAntSize;
+    if isfield(channel, 'TransmitArrayOrientation')
+        channel.ReceiveArrayOrientation = [rxOrientation(1); (-1)*rxOrientation(2); 0];  % the (-1) converts elevation to downtilt
+        channel.TransmitArrayOrientation = [txOrientation(1); (-1)*txOrientation(2); 0];   % the (-1) converts elevation to downtilt
     else
-        channel.ReceiveAntennaArray.Size = [ueAntSize, polarization, 1, 1];    
-        channel.TransmitAntennaArray.Size = [bsAntSize, polarization, 1, 1];
+        channel.ReceiveAntennaArray.Orientation = [rxOrientation(1); (-1)*rxOrientation(2); 0];  % the (-1) converts elevation to downtilt
+        channel.TransmitAntennaArray.Orientation = [txOrientation(1); (-1)*txOrientation(2); 0];   % the (-1) converts elevation to downtilt
+    end
+    
+    if params.CDL_5G.customAntenna
+        channel.TransmitAntennaArray = rxSize;
+        channel.ReceiveAntennaArray = txSize;
+    else
+        channel.ReceiveAntennaArray.Size = [rxSize, polarization, 1, 1];    
+        channel.TransmitAntennaArray.Size = [txSize, polarization, 1, 1];
     end
 
     ofdmInfo = nrOFDMInfo(params.CDL_5G.NRB, params.CDL_5G.SCS);
