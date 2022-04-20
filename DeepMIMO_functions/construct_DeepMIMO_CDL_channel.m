@@ -28,7 +28,7 @@ function channel = construct_DeepMIMO_CDL_channel(txSize, txOrientation, rxSize,
     channel.Seed = 5; % Fixed seed
     channel.XPR = params.CDL_5G.XPR;
     
-    if isfield(channel, 'TransmitArrayOrientation')
+    if ~isMATLABReleaseOlderThan("R2021a")
         channel.ReceiveArrayOrientation = [rxOrientation(1); (-1)*rxOrientation(2); 0];  % the (-1) converts elevation to downtilt
         channel.TransmitArrayOrientation = [txOrientation(1); (-1)*txOrientation(2); 0];   % the (-1) converts elevation to downtilt
     else
