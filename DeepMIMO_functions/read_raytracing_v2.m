@@ -5,140 +5,168 @@
 % providing a benchmarking tool for the developed algorithms
 % ---------------------------------------------------------------------- %
 
-function [channel_params_user, channel_params_BS, BS_loc] = read_raytracing_v2(BS_ID, params, params_inner)
+function [channel_params,channel_params_BS,BS_loc]=read_raytracing_v2(BS_ID, params, params_inner)
 
-    if params_inner.dual_polar_available
-        data_key_name = strcat('channels_VV');
-    else
-        data_key_name = 'channels';
-    end
+scenario_files = params_inner.scenario_files;
+%% Loading channel parameters between current active basesation transmitter and user receivers
+filename_DoD=strcat(scenario_files, '.', int2str(BS_ID),'.DoD.mat');
+filename_DoA=strcat(scenario_files, '.', int2str(BS_ID),'.DoA.mat');
+filename_CIR=strcat(scenario_files, '.', int2str(BS_ID),'.CIR.mat');
+filename_LOS=strcat(scenario_files, '.', int2str(BS_ID),'.LoS.mat');
+filename_PL=strcat(scenario_files, '.', int2str(BS_ID),'.PL.mat');
+filename_Loc=strcat(scenario_files, '.Loc.mat');
 
-    num_paths = double(params.num_paths);
-    tx_power_raytracing = params.transmit_power_raytracing;  % Current TX power in dBm
-    transmit_power = 30; % Target TX power in dBm (1 Watt transmit power)
-    power_diff = transmit_power-tx_power_raytracing;
+DoD_array=importdata(filename_DoD);
+DoA_array=importdata(filename_DoA);
+CIR_array=importdata(filename_CIR);
+LOS_array=importdata(filename_LOS);
+PL_array=importdata(filename_PL);
+Loc_array=importdata(filename_Loc);
 
-    if params_inner.doppler_available
-        channel_params_all = struct('phase',[],'ToA',[],'power',[],'DoA_phi',[],'DoA_theta',[],'DoD_phi',[],'DoD_theta',[],'LoS_status',[],'DS',[],'num_paths',[],'loc',[],'distance',[],'pathloss',[],'Doppler_vel',[],'Doppler_acc',[]);
-        channel_params_all_BS = struct('phase',[],'ToA',[],'power',[],'DoA_phi',[],'DoA_theta',[],'DoD_phi',[],'DoD_theta',[],'LoS_status',[],'DS',[],'num_paths',[],'loc',[],'distance',[],'pathloss',[],'Doppler_vel',[],'Doppler_acc',[]);
-    else
-        channel_params_all = struct('phase',[],'ToA',[],'power',[],'DoA_phi',[],'DoA_theta',[],'DoD_phi',[],'DoD_theta',[],'LoS_status',[],'DS',[],'num_paths',[],'loc',[],'distance',[],'pathloss',[]);
-        channel_params_all_BS = struct('phase',[],'ToA',[],'power',[],'DoA_phi',[],'DoA_theta',[],'DoD_phi',[],'DoD_theta',[],'LoS_status',[],'DS',[],'num_paths',[],'loc',[],'distance',[],'pathloss',[]);
-    end
+user_ids = double(params.user_ids);
+user_last = double(max(user_ids));
+num_paths = double(params.num_paths);
+tx_power_raytracing = double(params.transmit_power_raytracing); %The transmit power in dBm used to generate the channel data
+transmit_power = 30;
 
-    file_idx = 1;
-    file_loaded = 0;
-    user_count = 1;
-        
-    if params_inner.dynamic_scenario
-        if ~isempty(params_inner.UE_file_split)
-            params.num_user = params_inner.UE_file_split(2, file_idx);
-            filename = strcat('BS', num2str(BS_ID), '_UE_', num2str(params_inner.UE_file_split(1, file_idx)), '-', num2str(params_inner.UE_file_split(2, file_idx)), '.mat');
-            data = importdata(fullfile(params_inner.scenario_files, filename));
-            user_start = params_inner.UE_file_split(1, file_idx);
+total_num_users=double(DoD_array(1));
+pointer=0;
+
+DoD_array(1)=[];
+DoA_array(1)=[];
+CIR_array(1)=[];
+LOS_array(1)=[];
+
+channel_params_all=struct('DoD_phi',[],'DoD_theta',[],'DoA_phi',[],'DoA_theta',[],'phase',[],'ToA',[],'power',[],'num_paths',[],'loc',[],'LoS_status',[]);
+channel_params_all_BS =struct('DoD_phi',[],'DoD_theta',[],'DoA_phi',[],'DoA_theta',[],'phase',[],'ToA',[],'power',[],'num_paths',[],'loc',[],'LoS_status',[]);
+
+user_count = 1;
+[~,user_order] = sort(user_ids);
+for Receiver_Number=1:user_last
+    max_paths=double(DoD_array(pointer+2));
+    num_path_limited=double(min(num_paths,max_paths));
+    if ismember(Receiver_Number, user_ids)
+        if (max_paths>0)
+            Relevant_data_length=max_paths*4;
+            Relevant_limited_data_length=num_path_limited*4;
             
-            for ue_idx = 1:params.num_user
-                ue_idx_file = ue_idx - user_start;
-                max_paths = double(size(data.(data_key_name){ue_idx_file}.p, 2));
-                num_path_limited = double(min(num_paths, max_paths));
-
-                channel_params = data.(data_key_name){ue_idx_file}.p;
-                add_info = data.rx_locs(ue_idx_file, :);
-                channel_params_all(user_count) = parse_data(params_inner.doppler_available, num_path_limited, channel_params, add_info, power_diff);
-                
-                user_count = user_count + 1;
-            end
+            Relevant_DoD_array=DoD_array(pointer+3:pointer+2+Relevant_data_length);
+            Relevant_DoA_array=DoA_array(pointer+3:pointer+2+Relevant_data_length);
+            Relevant_CIR_array=CIR_array(pointer+3:pointer+2+Relevant_data_length);
+            
+            channel_params_all(user_order(user_count)).DoD_phi=Relevant_DoD_array(2:4:Relevant_limited_data_length);
+            channel_params_all(user_order(user_count)).DoD_theta=Relevant_DoD_array(3:4:Relevant_limited_data_length);
+            channel_params_all(user_order(user_count)).DoA_phi=Relevant_DoA_array(2:4:Relevant_limited_data_length);
+            channel_params_all(user_order(user_count)).DoA_theta=Relevant_DoA_array(3:4:Relevant_limited_data_length);
+            channel_params_all(user_order(user_count)).phase=Relevant_CIR_array(2:4:Relevant_limited_data_length);
+            channel_params_all(user_order(user_count)).ToA=Relevant_CIR_array(3:4:Relevant_limited_data_length);
+            channel_params_all(user_order(user_count)).DS = channel_params_all(user_order(user_count)).ToA - min(channel_params_all(user_order(user_count)).ToA);
+            channel_params_all(user_order(user_count)).power=1e-3*(10.^(0.1*( Relevant_CIR_array(4:4:Relevant_limited_data_length)+(transmit_power-tx_power_raytracing) )));
+            channel_params_all(user_order(user_count)).num_paths=num_path_limited;
+            channel_params_all(user_order(user_count)).loc=Loc_array(Receiver_Number,2:4);
+            channel_params_all(user_order(user_count)).distance=PL_array(Receiver_Number,1);
+            channel_params_all(user_order(user_count)).pathloss=PL_array(Receiver_Number,2);
+            channel_params_all(user_order(user_count)).LoS_status=LOS_array(Receiver_Number);
+                        
         else
-            params.num_user = 0;
+            channel_params_all(user_order(user_count)).DoD_phi=[];
+            channel_params_all(user_order(user_count)).DoD_theta=[];
+            channel_params_all(user_order(user_count)).DoA_phi=[];
+            channel_params_all(user_order(user_count)).DoA_theta=[];
+            channel_params_all(user_order(user_count)).phase=[];
+            channel_params_all(user_order(user_count)).ToA=[];
+            channel_params_all(user_order(user_count)).DS=[];
+            channel_params_all(user_order(user_count)).power=[];
+            channel_params_all(user_order(user_count)).num_paths=0;
+            channel_params_all(user_order(user_count)).loc=Loc_array(Receiver_Number,2:4);
+            channel_params_all(user_order(user_count)).distance=PL_array(Receiver_Number,1);
+            channel_params_all(user_order(user_count)).pathloss=[];
+            channel_params_all(user_order(user_count)).LoS_status=LOS_array(Receiver_Number);
         end
-    else
-        for ue_idx = params.user_ids
-            % If currently not loaded
-            % load the file that user is contained
-            while ue_idx > params_inner.UE_file_split(2, file_idx)
-                file_idx = file_idx + 1;
-                file_loaded = 0;
-            end
-            if ~file_loaded
-                filename = strcat('BS', num2str(BS_ID), '_UE_', num2str(params_inner.UE_file_split(1, file_idx)), '-', num2str(params_inner.UE_file_split(2, file_idx)), '.mat');
-                data = importdata(fullfile(params_inner.scenario_files, filename));
-                user_start = params_inner.UE_file_split(1, file_idx);
-                file_loaded = 1;
-            end
-
-            ue_idx_file = ue_idx - user_start;
-            max_paths = double(size(data.(data_key_name){ue_idx_file}.p, 2));
-            num_path_limited = double(min(num_paths, max_paths));
-
-            channel_params = data.(data_key_name){ue_idx_file}.p;
-            add_info = data.rx_locs(ue_idx_file, :);
-            channel_params_all(user_count) = parse_data(params_inner.doppler_available, num_path_limited, channel_params, add_info, power_diff);
-
-            user_count = user_count + 1;
-        end
+        user_count = double(user_count + 1);
     end
-    channel_params_user = channel_params_all(1,:);
-    
-    %% Loading channel parameters between current active basesation transmitter and all the active basestation receivers
-    user_count = 1;
-    filename = strcat('BS', num2str(BS_ID), '_BS.mat');
-    data = importdata(fullfile(params_inner.scenario_files, filename));
-    for bs_idx = params.active_BS
-
-        max_paths = double(size(data.(data_key_name){bs_idx}.p, 2));
-        num_path_limited = double(min(num_paths, max_paths));
-
-        channel_params = data.(data_key_name){bs_idx}.p;
-        add_info = data.rx_locs(bs_idx, :);
-
-        if bs_idx == BS_ID
-            BS_loc = add_info(1:3);
-        end
-
-        channel_params_all_BS(user_count) = parse_data(params_inner.doppler_available, num_path_limited, channel_params, add_info, power_diff);
-
-        user_count = user_count + 1;
-    end
-
-    channel_params_BS = channel_params_all_BS(1,:);
-    
-
+    pointer=double(pointer+max_paths*4+2);
 end
 
-function x = parse_data(doppler_available, num_paths, paths, info, power_diff)
-    if num_paths > 0
-        x.phase = paths(1, 1:num_paths);
-        x.ToA = paths(2, 1:num_paths);
-        x.power = 1e-3*(10.^(0.1*(paths(3, 1:num_paths) + power_diff)));
-        x.DoA_phi = paths(4, 1:num_paths);
-        x.DoA_theta = paths(5, 1:num_paths);
-        x.DoD_phi = paths(6, 1:num_paths);
-        x.DoD_theta = paths(7, 1:num_paths);
-        x.LoS_status = paths(8, 1:num_paths);
-        x.DS = x.ToA - min(x.ToA);
-        if doppler_available
-            x.Doppler_vel = paths(9, 1:num_paths);
-            x.Doppler_acc = paths(10, 1:num_paths);
-        end
-    else
-        x.phase = [];
-        x.ToA = [];
-        x.power = [];
-        x.DoA_phi = [];
-        x.DoA_theta = [];
-        x.DoD_phi = [];
-        x.DoD_theta = [];
-        x.LoS_status = [];
-        x.DS = [];
-        if doppler_available
-            x.Doppler_vel = [];
-            x.Doppler_acc = [];
-        end
-    end
+channel_params=channel_params_all(1,:);
 
-    %add_info = data.rx_locs(ue_idx_file, :);
-    x.num_paths = num_paths;
-    x.loc = info(1:3);
-    x.distance = info(4);
-    x.pathloss = info(5);
+%% Loading channel parameters between current active basesation transmitter and all the basestation receivers
+filename_BSBS_DoD=strcat(scenario_files, '.', int2str(BS_ID),'.DoD.BSBS.mat');
+filename_BSBS_DoA=strcat(scenario_files, '.', int2str(BS_ID),'.DoA.BSBS.mat');
+filename_BSBS_CIR=strcat(scenario_files, '.', int2str(BS_ID),'.CIR.BSBS.mat');
+filename_BSBS_LOS=strcat(scenario_files, '.', int2str(BS_ID),'.LoS.BSBS.mat');
+filename_BSBS_PL=strcat(scenario_files, '.', int2str(BS_ID),'.PL.BSBS.mat');
+filename_BSBS_Loc=strcat(scenario_files, '.BSBS.RX_Loc.mat');
+
+DoD_BSBS_array=importdata(filename_BSBS_DoD);
+DoA_BSBS_array=importdata(filename_BSBS_DoA);
+CIR_BSBS_array=importdata(filename_BSBS_CIR);
+LOS_BSBS_array=importdata(filename_BSBS_LOS);
+PL_BSBS_array=importdata(filename_BSBS_PL);
+Loc_BSBS_array=importdata(filename_BSBS_Loc);
+
+num_paths_BSBS = double(params.num_paths);
+total_num_BSs=double(DoD_BSBS_array(1));
+BS_pointer=0;
+
+DoD_BSBS_array(1)=[];
+DoA_BSBS_array(1)=[];
+CIR_BSBS_array(1)=[];
+LOS_BSBS_array(1)=[];
+
+BS_count = 1;
+for Receiver_BS_Number=1:total_num_BSs
+    max_paths_BSBS=double(DoD_BSBS_array(BS_pointer+2));
+    num_path_BS_limited=double(min(num_paths_BSBS,max_paths_BSBS));
+    if sum(Receiver_BS_Number == double(params.active_BS)) == 1 %Only read the channels related to the active basestation receivers
+
+        if (max_paths_BSBS>0)
+            Relevant_data_length_BSBS=max_paths_BSBS*4;
+            Relevant_limited_data_length_BSBS=num_path_BS_limited*4;
+
+            Relevant_DoD_BSBS_array=DoD_BSBS_array(BS_pointer+3:BS_pointer+2+Relevant_data_length_BSBS);
+            Relevant_DoA_BSBS_array=DoA_BSBS_array(BS_pointer+3:BS_pointer+2+Relevant_data_length_BSBS);
+            Relevant_CIR_BSBS_array=CIR_BSBS_array(BS_pointer+3:BS_pointer+2+Relevant_data_length_BSBS);
+
+            channel_params_all_BS(BS_count).DoD_phi=Relevant_DoD_BSBS_array(2:4:Relevant_limited_data_length_BSBS);
+            channel_params_all_BS(BS_count).DoD_theta=Relevant_DoD_BSBS_array(3:4:Relevant_limited_data_length_BSBS);
+            channel_params_all_BS(BS_count).DoA_phi=Relevant_DoA_BSBS_array(2:4:Relevant_limited_data_length_BSBS);
+            channel_params_all_BS(BS_count).DoA_theta=Relevant_DoA_BSBS_array(3:4:Relevant_limited_data_length_BSBS);
+            channel_params_all_BS(BS_count).phase=Relevant_CIR_BSBS_array(2:4:Relevant_limited_data_length_BSBS);
+            channel_params_all_BS(BS_count).ToA=Relevant_CIR_BSBS_array(3:4:Relevant_limited_data_length_BSBS);
+            channel_params_all_BS(BS_count).DS = channel_params_all_BS(BS_count).ToA - min(channel_params_all_BS(BS_count).ToA);
+            channel_params_all_BS(BS_count).power=1e-3*(10.^(0.1*( Relevant_CIR_BSBS_array(4:4:Relevant_limited_data_length_BSBS)+(transmit_power-tx_power_raytracing) )));
+            channel_params_all_BS(BS_count).num_paths=num_path_BS_limited;
+            channel_params_all_BS(BS_count).loc=Loc_BSBS_array(Receiver_BS_Number,2:4);
+            channel_params_all_BS(BS_count).distance=PL_BSBS_array(Receiver_BS_Number,1);
+            channel_params_all_BS(BS_count).pathloss=PL_BSBS_array(Receiver_BS_Number,2);
+            channel_params_all_BS(BS_count).LoS_status=LOS_BSBS_array(Receiver_BS_Number);
+
+        else
+            channel_params_all_BS(BS_count).DoD_phi=[];
+            channel_params_all_BS(BS_count).DoD_theta=[];
+            channel_params_all_BS(BS_count).DoA_phi=[];
+            channel_params_all_BS(BS_count).DoA_theta=[];
+            channel_params_all_BS(BS_count).phase=[];
+            channel_params_all_BS(BS_count).ToA=[];
+            channel_params_all_BS(BS_count).DS=[];
+            channel_params_all_BS(BS_count).power=[];
+            channel_params_all_BS(BS_count).num_paths=0;
+            channel_params_all_BS(BS_count).loc=Loc_BSBS_array(Receiver_BS_Number,2:4);
+            channel_params_all_BS(BS_count).distance=PL_BSBS_array(Receiver_BS_Number,1);
+            channel_params_all_BS(BS_count).pathloss=[];
+            channel_params_all_BS(BS_count).LoS_status=LOS_BSBS_array(Receiver_BS_Number);
+        end
+        BS_count = double(BS_count + 1);
+    end
+    BS_pointer=double(BS_pointer+max_paths_BSBS*4+2);
+end
+    
+channel_params_BS=channel_params_all_BS(1,:);
+
+
+%% Loading current active basestation location
+TX_Loc_array=importdata(strcat(scenario_files, '.TX_Loc.mat')); %Reading transmitter locations
+BS_loc = TX_Loc_array(BS_ID,2:4); %Select current active basestation location
+
 end

@@ -106,13 +106,13 @@ end
 function version = checkDataVersion(scenario_folder)
     new_params_file = fullfile(scenario_folder, 'params.mat');
     if exist(new_params_file, 'file') == 0
-        version = 1;
+        version = 2;
     else
-        load(new_params_file)
+        version = 3;
     end
 end
 
-function [params, params_inner] = load_scenario_params_v2(params, params_inner)
+function [params, params_inner] = load_scenario_params_v3(params, params_inner)
   
     if params_inner.dynamic_scenario == 1 
         list_of_folders = strsplit(sprintf('scene_%i--', params.scene_first-1:params.scene_last-1),'--');
@@ -142,7 +142,7 @@ function [params, params_inner] = load_scenario_params_v2(params, params_inner)
     
 end
 
-function [params, params_inner] = load_scenario_params_v1(params, params_inner)
+function [params, params_inner] = load_scenario_params_v2(params, params_inner)
   
     if params_inner.dynamic_scenario == 1
         list_of_folders = strsplit(sprintf('/scene_%i/--', params.scene_first-1:params.scene_last-1),'--');
