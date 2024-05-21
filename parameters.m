@@ -2,6 +2,7 @@
 % A detailed description of the parameters is available on DeepMIMO.net
 
 %Ray-tracing scenario
+% params.dataset_folder = './raytracing_scenarios';
 params.scenario = 'O1_60';          % The adopted ray tracing scenario [check the available scenarios at https://deepmimo.net/scenarios/]
 
 %Dynamic Scenario Scenes [only for dynamic (multiple-scene) scenarios]
@@ -18,10 +19,10 @@ params.active_user_last = 1;        % The last row of the considered user sectio
 % Subsampling of active users
 %--> Setting both subsampling parameters to 1 activate all the users indicated previously
 params.row_subsampling = 1;         % Randomly select round(row_subsampling*(active_user_last-params.active_user_first)) rows
-params.user_subsampling = 1;        % Randomly select round(user_subsampling*number_of_users_in_row) users in each row
+params.user_subsampling = 0.01;        % Randomly select round(user_subsampling*number_of_users_in_row) users in each row
 
 params.enable_BS2BSchannels = 1;    % Enable generating BS to BS channel (could be useful for IAB, RIS, repeaters, etc.) 
-params.num_paths = 5;               % Maximum number of paths to be considered (a value between 1 and 25), e.g., choose 1 if you are only interested in the strongest path
+params.num_paths = 1;               % Maximum number of paths to be considered (a value between 1 and 25), e.g., choose 1 if you are only interested in the strongest path
 
 % If 5G toolbox is activated, the relevant previous parameters will be overridden
 params.CDL_5G.NRB = 24;             % Number of NR blocks
@@ -47,7 +48,7 @@ params.CDL_5G.UTDirectionOfTravel = [0, 360; 90, 90];
 
 % Number of consecutive OFDM slots to be sampled.
 % - 14*num_slots channel time samples will be returned -
-params.CDL_5G.num_slots = 2;
+params.CDL_5G.num_slots = 4;
 
 % The LOS path (if there is any in the ray-tracing) is split into Rician paths with the K-factor.
 % 13.3dB is the CDL-D channel K factor given in 3GPP 38.901 7.7.1-4.

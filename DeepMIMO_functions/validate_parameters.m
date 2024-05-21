@@ -85,26 +85,86 @@ function [params, params_inner] = additional_params(params)
     end
     params_inner.list_of_folders = list_of_folders;
     
+    % Check data version and load parameters of the scenario
+    params_inner.data_format_version = checkDataVersion(scenario_folder);
+    version_postfix = strcat('v', num2str(params_inner.data_format_version));
+    
+    % Load Scenario Parameters (version specific)
+    load_scenario_params_fun = strcat('load_scenario_params_', version_postfix);
+    [params, params_inner] = feval(load_scenario_params_fun, params, params_inner);
+    
+    % Select raytracing function (version specific)
+    params_inner.raytracing_fn = strcat('read_raytracing_', version_postfix);
+    
+    params.num_active_BS =  length(params.active_BS);
+
+    validateUserParameters(params);
+    [params.user_ids, params.num_user] = find_users(params);
+end
+
+
+function version = checkDataVersion(scenario_folder)
+    new_params_file = fullfile(scenario_folder, 'params.mat');
+    if exist(new_params_file, 'file') == 0
+        version = 2;
+    else
+        version = 3;
+    end
+end
+
+function [params, params_inner] = load_scenario_params_v3(params, params_inner)
+  
+    if params_inner.dynamic_scenario == 1 
+        list_of_folders = strsplit(sprintf('scene_%i--', params.scene_first-1:params.scene_last-1),'--');
+        list_of_folders(end) = [];
+        list_of_folders = fullfile(params_inner.dataset_folder, params.scenario, list_of_folders);
+    else
+        list_of_folders = {fullfile(params_inner.dataset_folder, params.scenario)};
+    end
+    params_inner.list_of_folders = list_of_folders;
+    
+    % Read scenario parameters
+    params_inner.scenario_files=params_inner.list_of_folders{1}; % The initial of all the scenario files
+    params_file = fullfile(params_inner.dataset_folder, params.scenario, 'params.mat');
+    
+    load(params_file) % Scenario parameter file
+    
+    params.carrier_freq = carrier_freq; % in Hz
+    params.transmit_power_raytracing = transmit_power; % in dB
+    params.user_grids = user_grids;
+    params.num_BS = num_BS;
+    %params.BS_grids = BS_grids;
+    %params.BS_ID_map = TX_ID_map; % New addition for the new data format
+    
+    params_inner = findUserFileSplit(params_inner);
+    params_inner.doppler_available = doppler_available;
+    params_inner.dual_polar_available = dual_polar_available;
+    
+end
+
+function [params, params_inner] = load_scenario_params_v2(params, params_inner)
+  
+    if params_inner.dynamic_scenario == 1
+        list_of_folders = strsplit(sprintf('/scene_%i/--', params.scene_first-1:params.scene_last-1),'--');
+        list_of_folders(end) = [];
+        list_of_folders = fullfile(params_inner.dataset_folder, params.scenario, list_of_folders);
+    else
+        list_of_folders = {fullfile(params_inner.dataset_folder, params.scenario)};
+    end
+    params_inner.list_of_folders = list_of_folders;
+    
     % Read scenario parameters
     params_inner.scenario_files=fullfile(list_of_folders{1}, params.scenario); % The initial of all the scenario files
     load([params_inner.scenario_files, '.params.mat']) % Scenario parameter file
-
-    % BS-BS channel parameters
-    if params.enable_BS2BSchannels
-        load([params_inner.scenario_files, '.BSBS.params.mat']) % BS2BS parameter file
-        params.BS_grids = BS_grids;
-    end
-
     params.carrier_freq = carrier_freq; % in Hz
     params.transmit_power_raytracing = transmit_power; % in dBm
     params.user_grids = user_grids;
     params.num_BS = num_BS;
-    params.num_active_BS =  length(params.active_BS);
     
-    assert(params.row_subsampling<=1 & params.row_subsampling>0, 'Row subsampling parameters must be selected in (0, 1]')
-    assert(params.user_subsampling<=1 & params.user_subsampling>0, 'User subsampling parameters must be selected in (0, 1]')
-
-    [params.user_ids, params.num_user] = find_users(params);
+    % BS-BS channel parameters
+    load([params_inner.scenario_files, '.BSBS.params.mat']) % BS2BS parameter file
+    params.BS_grids = BS_grids;
+    
 end
 
 function [params_inner] = validate_CDL5G_params(params, params_inner)
@@ -210,4 +270,38 @@ function [params_inner] = validate_CDL5G_params(params, params_inner)
     else
         error('The defined user array orientation must be either 1x2 or 2x2 dimensional for fixed or random values.')
     end
+end
+
+% Find how the user files are split to multiple files with subset of users
+% E.g., 0-10k 10k-20k ... etc
+function params_inner = findUserFileSplit(params_inner)
+    % Get a list of UE split
+    fileList = dir(fullfile(params_inner.scenario_files, '*.mat'));
+    filePattern = 'BS1_UE_(\d+)-(\d+)\.mat';
+
+    number1 = [];
+    number2 = [];
+
+    % Loop through each file and extract the numbers
+    for i = 1:numel(fileList)
+        filename = fileList(i).name;
+
+        % Check if the file name matches the pattern
+        match = regexp(filename, filePattern, 'tokens');
+
+        if ~isempty(match)
+            % Extract the numbers from the file name
+            number1 = [number1 str2double(match{1}{1})];
+            number2 = [number2 str2double(match{1}{2})];
+        end
+    end
+    params_inner.UE_file_split = [number1; number2];
+end
+
+function [] = validateUserParameters(params)
+    assert(params.row_subsampling<=1 & params.row_subsampling>0, 'Row subsampling parameters must be selected in (0, 1]')
+    assert(params.user_subsampling<=1 & params.user_subsampling>0, 'User subsampling parameters must be selected in (0, 1]')
+
+    assert(params.active_user_last <= params.user_grids(end, 2) & params.active_user_last >= 1, sprintf('There are total %i user rows in the scenario, please select the active user first and last in [1, %i]', params.user_grids(end, 2), params.user_grids(end, 2)));
+    assert(params.active_user_first <= params.active_user_last, 'active_user_last parameter must be greater than or equal to active_user_first');
 end

@@ -22,27 +22,8 @@ function [DeepMIMO_dataset, params]=DeepMIMO_generator(params)
 
         DeepMIMO_dataset = DeepMIMO_scene;
         params = param;
-        saveDataset = params{1}.saveDataset;
     else
         DeepMIMO_dataset = generate_data(params, params_inner);
-        saveDataset = params.saveDataset;
-    end
-
-    % Saving the data
-    if saveDataset
-        fprintf('\n Saving the DeepMIMO Dataset ...')
-        
-        
-        fileidx = 1;
-        while isfile(sprintf('DeepMIMO_dataset/dataset_%i.mat', fileidx))
-            fileidx = fileidx + 1;
-        end
-        sfile_DeepMIMO = sprintf('DeepMIMO_dataset/dataset_%i.mat', fileidx);
-        dataset_params = params;
-        save(sfile_DeepMIMO,'DeepMIMO_dataset', 'dataset_params', '-v7.3');
-        
-        fprintf('\n The generated DeepMIMO dataset is saved into %s file.', sfile_DeepMIMO);
-        
     end
 
     fprintf('\n DeepMIMO Dataset Generation completed \n')
@@ -55,7 +36,7 @@ function DeepMIMO_dataset = generate_data(params, params_inner)
     for t=1:params.num_active_BS
         bs_ID = params.active_BS(t);
         fprintf('\n Basestation %i', bs_ID);
-        [TX{t}.channel_params, TX{t}.channel_params_BSBS, TX{t}.loc] = read_raytracing(bs_ID, params, params_inner.scenario_files);
+        [TX{t}.channel_params, TX{t}.channel_params_BSBS, TX{t}.loc] = feval(params_inner.raytracing_fn, bs_ID, params, params_inner);
     end
 
     % Constructing the channel matrices from ray-tracing
